@@ -6,6 +6,16 @@ process.on('unhandledRejection', (err) => {
     console.error('🔥 UNHANDLED:', err);
 });
 
+function safeEmit(socket, event, data) {
+    try {
+        if (socket && socket.emit) {
+            socket.emit(event, data ?? {});
+        }
+    } catch (err) {
+        console.error('socket emit failed:', err);
+    }
+}
+
 require('dotenv').config();
 
 const express = require('express');
@@ -56,7 +66,7 @@ io.on('connection', (socket) => {
 
         // Check if rate limit exceeded
         if (process.env.ENABLE_RATE_LIMIT && clientBlocked(io, socket)) {
-            socket.emit('tiktokDisconnected', 'You have opened too many connections or made too many connection requests. Please reduce the number of connections/requests or host your own server instance. The connections are limited to avoid that the server IP gets blocked by TokTok.');
+            safeEmit(socket,'tiktokDisconnected', 'You have opened too many connections or made too many connection requests. Please reduce the number of connections/requests or host your own server instance. The connections are limited to avoid that the server IP gets blocked by TokTok.');
             return;
         }
 
@@ -76,7 +86,7 @@ io.on('connection', (socket) => {
                 }
         
                 if (process.env.ENABLE_RATE_LIMIT && clientBlocked(io, socket)) {
-                    socket.emit('tiktokDisconnected', 'Rate limit exceeded');
+                    safeEmit(socket,'tiktokDisconnected', 'Rate limit exceeded');
                     return;
                 }
         
@@ -86,7 +96,7 @@ io.on('connection', (socket) => {
                 
                     // กัน crash ถ้า connection ยังไม่พร้อม
                     if (!tiktokConnectionWrapper?.connection) {
-                        socket.emit('tiktokDisconnected', 'Connection init failed');
+                        safeEmit(socket,'tiktokDisconnected', 'Connection init failed');
                         return;
                     }
         
@@ -95,37 +105,37 @@ io.on('connection', (socket) => {
                     
                 } catch (err) {
                     console.error('CONNECT ERROR:', err);
-                    socket.emit('tiktokDisconnected', err.toString());
+                    safeEmit(socket,'tiktokDisconnected', err.toString());
                     return;
                 }
         
             } catch (err) {
                 console.error("TikTok connection error:", err);
-                socket.emit('tiktokDisconnected', err.toString());
+                safeEmit(socket,'tiktokDisconnected', err.toString());
             }
         });
         
         // Redirect wrapper control events once
-        tiktokConnectionWrapper.once('connected', state => socket.emit('tiktokConnected', state));
-        tiktokConnectionWrapper.once('disconnected', reason => socket.emit('tiktokDisconnected', reason));
+        tiktokConnectionWrapper.once('connected', state => safeEmit(socket,'tiktokConnected', state));
+        tiktokConnectionWrapper.once('disconnected', reason => safeEmit(socket,'tiktokDisconnected', reason));
 
         // Notify client when stream ends
-        tiktokConnectionWrapper.connection.on('streamEnd', () => socket.emit('streamEnd'));
+        tiktokConnectionWrapper.connection.on('streamEnd', () => safeEmit(socket,'streamEnd'));
 
         // Redirect message events
-        tiktokConnectionWrapper.connection.on('roomUser', msg => socket.emit('roomUser', msg));
-        tiktokConnectionWrapper.connection.on('member', msg => socket.emit('member', msg));
-        tiktokConnectionWrapper.connection.on('chat', msg => socket.emit('chat', msg));
-        tiktokConnectionWrapper.connection.on('gift', msg => socket.emit('gift', msg));
-        tiktokConnectionWrapper.connection.on('social', msg => socket.emit('social', msg));
-        tiktokConnectionWrapper.connection.on('like', msg => socket.emit('like', msg));
-        tiktokConnectionWrapper.connection.on('questionNew', msg => socket.emit('questionNew', msg));
-        tiktokConnectionWrapper.connection.on('linkMicBattle', msg => socket.emit('linkMicBattle', msg));
-        tiktokConnectionWrapper.connection.on('linkMicArmies', msg => socket.emit('linkMicArmies', msg));
-        tiktokConnectionWrapper.connection.on('liveIntro', msg => socket.emit('liveIntro', msg));
-        tiktokConnectionWrapper.connection.on('emote', msg => socket.emit('emote', msg));
-        tiktokConnectionWrapper.connection.on('envelope', msg => socket.emit('envelope', msg));
-        tiktokConnectionWrapper.connection.on('subscribe', msg => socket.emit('subscribe', msg));
+        tiktokConnectionWrapper.connection.on('roomUser', msg => safeEmit(socket,'roomUser', msg));
+        tiktokConnectionWrapper.connection.on('member', msg => safeEmit(socket,'member', msg));
+        tiktokConnectionWrapper.connection.on('chat', msg => safeEmit(socket,'chat', msg));
+        tiktokConnectionWrapper.connection.on('gift', msg => safeEmit(socket,'gift', msg));
+        tiktokConnectionWrapper.connection.on('social', msg => safeEmit(socket,'social', msg));
+        tiktokConnectionWrapper.connection.on('like', msg => safeEmit(socket,'like', msg));
+        tiktokConnectionWrapper.connection.on('questionNew', msg => safeEmit(socket,'questionNew', msg));
+        tiktokConnectionWrapper.connection.on('linkMicBattle', msg => safeEmit(socket,'linkMicBattle', msg));
+        tiktokConnectionWrapper.connection.on('linkMicArmies', msg => safeEmit(socket,'linkMicArmies', msg));
+        tiktokConnectionWrapper.connection.on('liveIntro', msg => safeEmit(socket,'liveIntro', msg));
+        tiktokConnectionWrapper.connection.on('emote', msg => safeEmit(socket,'emote', msg));
+        tiktokConnectionWrapper.connection.on('envelope', msg => safeEmit(socket,'envelope', msg));
+        tiktokConnectionWrapper.connection.on('subscribe', msg => safeEmit(socket,'subscribe', msg));
     });
 
     socket.on('disconnect', () => {
@@ -145,6 +155,14 @@ app.use(express.static('public'));
 
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html');
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('🔥 UNCAUGHT EXCEPTION:', err);
+});
+
+process.on('unhandledRejection', (err) => {
+    console.error('🔥 UNHANDLED REJECTION:', err);
 });
 
 // Start http listener
