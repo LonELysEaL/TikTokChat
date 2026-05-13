@@ -95,3 +95,4 @@ app.use(express.static('public'));
 const port = process.env.PORT || 8081;
 httpServer.listen(port);
 console.info(`Server running! Please visit http://localhost:${port}`);
+console.log('Server running on port', PORT);
