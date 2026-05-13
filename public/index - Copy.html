@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>TikTok LIVE Chat Reader</title>
+
+<!--	Edited by LonELysEaL	-->
+
+	<meta name="description" content="A chat reader for TikTok LIVE utilizing TikTok-Live-Connector and Socket.IO to forward the data to the client. This demo project uses the unofficial TikTok API to retrieve chat comments, gifts and other events from TikTok LIVE.">
+	<meta name="keywords" content="TikTok,Live,Livestream,Chat,Reader,Scraper,Tracker,tiktok.com,broadcast,api,library,node,node.js,javascript">
+
+	<link rel="stylesheet" href="style.css">
+	<link rel="icon" type="image/png" href="images/TikTok-favicon2.png">
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+	<script src="connection.js"></script>
+	<script src="app.js"></script>
+
+	<script>
+	
+		function generateOverlay() {
+			let username = $('#uniqueIdInput').val();
+			let url = `/obs.html?username=${username}&showLikes=1&showChats=1&showGifts=1&showFollows=1&showJoins=1&bgColor=rgb(24,23,28)&fontColor=rgb(227,229,235)&fontSize=1.3em`;
+
+			if(username) {
+				window.open(url, '_blank');
+			} else {
+				alert("Enter username");
+			}
+		}
+
+	</script>
+</head>
+
+<body id="mainBody" style="background-color: black; scrollbar-color: #222222 black; color: #AAAAAA ;">
+    <div class="head">
+        <h1>TikTok LIVE Chat Reader</h1>
+<!--
+        <span class="subTitle">Source: <a href="https://github.com/zerodytrash/TikTok-Chat-Reader">https://github.com/zerodytrash/TikTok-Chat-Reader</a></span>
+-->
+    </div>
+<!--
+    <div>
+        A chat reader for <a href="https://www.tiktok.com/live">TikTok LIVE</a> utilizing <a href="https://github.com/zerodytrash/TikTok-Live-Connector">TikTok-Live-Connector</a> and <a href="https://socket.io/">Socket.IO</a> to forward the data to the client. More Tools available at <a href="https://tikfinity.zerody.one/" target="_blank">TikFinity</a>.
+    </div>
+-->
+    <div id='debugWin'>
+
+    </div>
+
+    <DIV id="btnSetting1" title="Setting" style="cursor:pointer; z-index: 1; top:10px; left:800px; position: fixed;">⚙️</DIV>
+	<DIV id="btnSettingAnswer" title="Answer" style="cursor:pointer; z-index: 1; top:10px; left:800px; position: fixed;">🗳️</DIV>
+	<DIV class="giftDisplayBox" id="giftDisplay"></DIV>
+<!--	<button id="go">Go</button>
+-->
+
+    <div class="inputFields">
+        <p>Enter the <b>@username</b> of a user who is currently live:</p>
+        <input type="text" id="uniqueIdInput">
+<!--        <input type="button" id="connectButton" value="connect" onclick="this.disabled=true;this.value='Connecting...'; connect();this.disabled=false;">
+-->
+        <input type="button" id="connectButton" value="connect">
+        <a href="#" onclick="generateOverlay()">Generate Overlay URL</a>
+    </div>
+
+    <table class="splitstatetable" width=100%>
+        <tr>
+            <td>
+                <pre id="stateText">Enter live broadcaster's ID</pre>
+            </td>
+            <td>
+                <div id="roomStats"></div>
+            </td>
+        </tr>
+    </table>
+
+	<table class="splitchattable" id="table1">
+        <tr>
+            <td width=25% style="border-style:dotted; border-color:Yellow;" id="tbNote">
+                    <h3 class="containerheader" style="color:Yellow;" id="NoteHead">Note</h3>
+                <div class="notecontainer" id="notecontainer1">
+                </div>
+            </td>
+            <td width=25% style="border-style:dotted; border-color:Yellow;" id="tbGift" rowspan="2">
+       	            <h3 class="containerheader" style="color:Yellow;" id="giftHead">Gifts</h3>
+                <div class="giftcontainer" id="giftcontainer1">
+                </div>
+            </td>
+            <th width=50% style="border-style:dotted; border-color:Yellow;" id="tbChat" rowspan="2">
+                    <h3 class="containerheader" style="color:Yellow;" id="chatHead">Chats</h3>
+                <div class="chatcontainer" id="chatcontainer1" align="left">
+                </div>
+            </th>
+		</tr>
+		<tr>	
+            <td width=25% style="border-style:dotted; border-color:Yellow;" id="tbEvent">
+                    <h3 class="containerheader" style="color:Yellow;" id="eventHead">Events</h3>
+                <div class="roomeventcontainer" id="roomeventcontainer1">
+                </div>
+            </td>
+        </tr>
+	</table>
+	<table width=100% id="rawTable" Hidden>
+		<tr id="rawTableRow">
+			<th style="border-style:dotted; border-color:Yellow;" id="tbRaw">
+				<h3 class="containerheader" style="color:Yellow;">Raw Data</h3>
+				<div class="rawcontainer" id="rawcontainer1">
+				</div>
+			</th>
+		</tr>
+	</table>
+
+
+    <!-- The Modal -->
+    <div id="myModal" class="modal">
+
+		<!-- Modal content -->
+		<div class="modal-content" style="min-width:400px">
+			<span class="close">&times;</span>
+
+			<center>
+
+			<fieldset style="width:300px">
+			  <legend>Gift Option:</legend>
+
+			  <div>
+			    <input type="checkbox" id="giftfloat" name="giftfloat" onchange="giftOption()" checked />
+			    <label for="giftfloat">Floating</label>
+			  </div>
+
+			  <div>
+			    <input type="checkbox" id="giftcomment" name="giftcomment" onchange="giftOption()" />
+			    <label for="giftcomment">Comment</label>
+			  </div>
+			</fieldset>
+
+			<p>Note Text Size : <output id="noteSize">120</output>
+			<br/>
+			<input id="noteSlider" type="range" min="0" max="300" step="5" value="120" oninput="noteSizeChange(this.value)" style="width: 300px"></p>
+
+			<p>Event Text Size : <output id="eventSize">120</output>
+			<br/>
+			<input id="eventSlider" type="range" min="0" max="300" step="5" value="120" oninput="eventSizeChange(this.value)" style="width: 300px"></p>
+
+			<p>Gift Text Size : <output id="giftSize">120</output>
+			<br/>
+			<input id="giftSlider" type="range" min="0" max="300" step="5" value="120" oninput="giftSizeChange(this.value)" style="width: 300px"></p>
+
+			<p>Chat Text Size : <output id="chatSize">120</output>
+			<br/>
+			<input id="chatSlider" type="range" min="0" max="300" step="5" value="120" oninput="chatSizeChange(this.value)" style="width: 300px"></p>
+
+			</center>
+		</div>
+
+    </div>
+
+    <div class="answermodal" id="answerModal">
+		<!-- Modal content -->
+		<div class="answermodal-content" style="min-width:200px;position:fixed" id="answerBoxArea">
+			<span class="close">&times;</span>
+			<center>
+				<input type="text" id="answerInput" size="35" placeholder="เซ็ตคำตอบ (ใช้ * หรือ ? แทนคำนำหน้าหรือต่อท้ายได้)"><input type="button" onclick="setAnswer()" value="Set"><br/>
+				<p> Answer : <output id="answer"></output></p>
+				<div class="answercontainer" id="answerBoxContainer" style="height:200px" align="left"></div>
+			</center>
+		</div>
+    </div>
+
+    <div id="balloon-container" style="top:0;left:0;z-index=-1">
+    </div>
+
+<script>
+	// Get the modal
+	var modal = document.getElementById("myModal");
+	var answerModal = document.getElementById("answerModal");
+
+	// Get the button that opens the modal
+	var btnSetting = document.getElementById("btnSetting1");
+	var btnAnswer = document.getElementById("btnSettingAnswer");
+
+	// Get the <span> element that closes the modal
+	var span = document.getElementsByClassName("close")[0];
+	var closeAnswerBox = document.getElementsByClassName("close")[1];
+
+	// When the user clicks the button, open the modal 
+	btnSetting.onclick = function() {
+	  modal.style.display = "block";
+	}
+	btnAnswer.onclick = function() {
+		if (answerModal.style.display == "block") {
+			answerModal.style.display = "none";
+		} else {
+			answerModal.style.display = "block";
+		}
+	}
+
+	// When the user clicks on <span> (x), close the modal
+	span.onclick = function() {
+	  modal.style.display = "none";
+	}
+	closeAnswerBox.onclick = function() {
+	  answerModal.style.display = "none";
+	}
+
+	// When the user clicks anywhere outside of the modal, close it
+	window.onclick = function(event) {
+	  if (event.target == modal) {
+	    modal.style.display = "none";
+	  }
+	  if (event.target == answerModal) {
+	    answerModal.style.display = "none";
+	  }
+	}
+
+	function chatSizeChange(val) {
+		if ((val<100) || (val>150)) {
+			document.getElementById('chatSlider').step = 1;
+		} else {
+			document.getElementById('chatSlider').step = 5;
+		}
+		let chatText = document.getElementById('chatcontainer1');
+		let isScrolledToBottom = chatText.scrollHeight - chatText.clientHeight <= chatText.scrollTop + 1;
+		document.getElementById('chatSize').innerHTML = val;
+		chatText.style.fontSize = val + "%";
+		if (isScrolledToBottom) {
+			chatText.scrollTop = chatText.scrollHeight - chatText.clientHeight;
+		}
+	}
+
+	function giftSizeChange(val) {
+		if ((val<100) || (val>150)) {
+			document.getElementById('giftSlider').step = 1;
+		} else {
+			document.getElementById('giftSlider').step = 5;
+		}
+		let giftText = document.getElementById('giftcontainer1');
+		let isScrolledToBottom = giftText.scrollHeight - giftText.clientHeight <= giftText.scrollTop + 1;
+		document.getElementById('giftSize').innerHTML = val;
+		giftText.style.fontSize = val + "%";
+		if (isScrolledToBottom) {
+			giftText.scrollTop = giftText.scrollHeight - giftText.clientHeight;
+		}
+	}
+
+	function noteSizeChange(val) {
+		if ((val<100) || (val>150)) {
+			document.getElementById('noteSlider').step = 1;
+		} else {
+			document.getElementById('noteSlider').step = 5;
+		}
+		let noteText = document.getElementById('notecontainer1');
+		document.getElementById('noteSize').innerHTML = val;
+		noteText.style.fontSize = val + "%";
+	}
+
+	function eventSizeChange(val) {
+		if ((val<100) || (val>150)) {
+			document.getElementById('eventSlider').step = 1;
+		} else {
+			document.getElementById('eventSlider').step = 5;
+		}
+		let eventText = document.getElementById('roomeventcontainer1');
+		let isScrolledToBottom = eventText.scrollHeight - eventText.clientHeight <= eventText.scrollTop + 1;
+		document.getElementById('eventSize').innerHTML = val;
+		eventText.style.fontSize = val + "%";
+		if (isScrolledToBottom) {
+			eventText.scrollTop = eventText.scrollHeight - eventText.clientHeight;
+		}
+	}
+
+/*
+// {##BEGIN##} ############## Animate Gigt in Background ##############
+function myFunction1(imgUrl,giftCost) {
+  document.getElementById("mainBody").style.backgroundImage = "url('" + imgUrl + "')";
+  document.getElementById("mainBody").style.backgroundSize = (scaleSize) + "%";
+  scaleSize = Math.round((scaleSize+1) * 1.3);
+  if (scaleSize > (500 + Math.round(giftCost/5)*2)) {
+  	scaleSize = 1;
+    clearTimeout(giftAnimTimer);
+    document.getElementById("mainBody").style.backgroundImage = "none";
+  } else {
+    clearTimeout(giftAnimTimer);
+	giftAnimTimer = setTimeout(() => {
+				myFunction1(imgUrl,giftCost);
+			}, 100)
+  }
+}
+let giftAnimTimer;
+var scaleSize = 1;
+
+giftAnimTimer = setTimeout(() => {
+				myFunction1('https://p19-webcast.tiktokcdn.com/img/maliva/webcast-va/753098e5a8f45afa965b73616c04cf89~tplv-obj.png',999);
+			}, 100)
+
+// {##END##} ############## Animate Gigt in Background ##############
+*/
+
+let balloonContainer = document.getElementById("balloon-container");
+/*
+window.addEventListener("load", () => {
+  createBalloons(30)
+});
+
+window.addEventListener("click", () => {
+  removeBalloons(29);
+});
+*/
+
+</script>
+
+</body>
+</html>
