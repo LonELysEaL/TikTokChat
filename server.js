@@ -36,6 +36,7 @@ const app = express();
 
 app.get('/', (req, res) => {
     res.status(200).send('OK - TikTok Chat Server Running');
+    res.sendFile(__dirname + '/public/index.html');
 });
 
 const httpServer = createServer(app);
@@ -124,7 +125,17 @@ io.on('connection', (socket) => {
         });
         
         // Redirect wrapper control events once
-        tiktokConnectionWrapper.once('connected', state => safeEmit(socket,'tiktokConnected', state));
+        if (!tiktokConnectionWrapper || !tiktokConnectionWrapper.connection) {
+            safeEmit(socket,'tiktokDisconnected', 'Connection not ready');
+            return;
+        }
+
+        const conn = tiktokConnectionWrapper.connection;
+        if (conn) {
+            conn.once('connected', state => safeEmit(socket,'tiktokConnected', state));
+            conn.once('disconnected', reason => safeEmit(socket,'tiktokDisconnected', reason));
+        }
+        
         tiktokConnectionWrapper.once('disconnected', reason => safeEmit(socket,'tiktokDisconnected', reason));
 
         // Notify client when stream ends
