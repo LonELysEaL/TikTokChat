@@ -57,6 +57,12 @@ function connect() {
 			//set page title to avoid double connect
 			document.title = "TikTok - " + uniqueId;
 			
+			if (connectTimer) {
+                clearTimeout(connectTimer);
+                connectTimer = null;
+            }
+
+            document.getElementById('connectButton').disabled = false;
 
         }).catch(errorMessage => {
 			if (isConnected) return;
@@ -72,18 +78,21 @@ function connect() {
 			clearTimeout(timer);
         })
 
+		// ❌ FIX: timer ต้องอยู่ “หลัง connect เริ่ม” แต่ต้อง cancel ได้
+        connectTimer = setTimeout(() => {
+            if (!isConnected) {
+                $('#stateText').text("Connection Timeout");
+                document.getElementById('connectButton').disabled = false;
+            }
+        }, 15000);
+		
     } else {
 		if (uniqueId == "") {
 			alert('No username entered');
 		} else {
-			alert('Already connected');
-			
+			alert('Already connected');			
 		}
     }
-    let timer;
-    timer = setTimeout(() => {
-				document.getElementById('connectButton').disabled = false;
-			}, 5000);
 }
 
 // Prevent Cross site scripting (XSS)
