@@ -68,6 +68,12 @@ class TikTokConnectionWrapper extends EventEmitter {
         console.log('🚀 TIKTOK CONNECT START:', this.uniqueId);
         
         this.connection.connect().then((state) => {
+
+            if (!this.connection) {
+                this.emit('disconnected', 'Connection not initialized');
+                return;
+            }
+            
             this.log(`${isReconnect ? 'Reconnected' : 'Connected'} to roomId ${state.roomId}, websocket: ${state.upgradedToWebsocket}`);
 
             globalConnectionCount += 1;
