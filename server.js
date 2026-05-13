@@ -15,6 +15,11 @@ const { TikTokConnectionWrapper, getGlobalConnectionCount } = require('./connect
 const { clientBlocked } = require('./limiter');
 
 const app = express();
+
+app.get('/', (req, res) => {
+    res.status(200).send('OK - TikTok Chat Server Running');
+});
+
 const httpServer = createServer(app);
 
 // Enable cross origin resource sharing
