@@ -72,6 +72,7 @@ class TikTokConnectionWrapper extends EventEmitter {
         }
     }
 
+/*
     connect(isReconnect) {
 
         console.log('🚀 TIKTOK CONNECT START:', this.uniqueId);
@@ -115,6 +116,41 @@ class TikTokConnectionWrapper extends EventEmitter {
                 this.emit('disconnected', err.toString());
             }
         })
+    }
+*/
+
+    async connect(isReconnect) {
+        try {
+            const state = await this.connection.connect();
+    
+            this.log(`${isReconnect ? 'Reconnected' : 'Connected'} roomId ${state.roomId}`);
+    
+            globalConnectionCount++;
+    
+            this.reconnectCount = 0;
+            this.reconnectWaitMs = 1000;
+    
+            if (this.clientDisconnected) {
+                this.connection.disconnect();
+                return;
+            }
+    
+            if (!isReconnect) {
+                this.emit('connected', state);
+            }
+    
+        } catch (err) {
+            console.log('🔥 CONNECT FAILED FULL:');
+            console.log(err?.message);
+            console.log(err?.stack);
+            console.log(err);
+    
+            if (isReconnect) {
+                this.scheduleReconnect(err);
+            } else {
+                this.emit('disconnected', err?.message || err.toString());
+            }
+        }
     }
 
     scheduleReconnect(reason) {
