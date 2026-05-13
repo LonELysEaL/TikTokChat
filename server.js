@@ -1,3 +1,9 @@
+const originalError = console.error;
+
+console.error = (...args) => {
+    originalError('🔥 FULL ERROR LOG =>', ...args);
+};
+
 process.on('uncaughtException', (err) => {
     console.error('🔥 UNCAUGHT:', err);
 });
@@ -158,15 +164,21 @@ app.get('/', (req, res) => {
 });
 
 process.on('uncaughtException', (err) => {
-    console.error('🔥 UNCAUGHT EXCEPTION:', err);
+    console.log('🔥 UNCUGHT EXCEPTION FULL:');
+    console.log(err);
+    console.log(err?.stack);
 });
 
 process.on('unhandledRejection', (err) => {
-    console.error('🔥 UNHANDLED REJECTION:', err);
+    console.log('🔥 UNHANDLED REJECTION FULL:');
+    console.log(err);
+    console.log(err?.stack);
 });
 
 process.on('uncaughtExceptionMonitor', (err) => {
-    console.log('🔥 MONITOR:', err);
+    console.log('🔥 MONITOR:');
+    console.log(err);
+    console.log(err?.stack);
 });
 
 // Start http listener
@@ -177,3 +189,9 @@ httpServer.listen(port, '0.0.0.0', () => {
 });
 //console.info(`Server running! Please visit http://localhost:${port}`);
 //console.log('Server running on port', port);
+
+io.on('connection', (socket) => {
+    socket.onAny((event, ...args) => {
+        console.log('📡 SOCKET EVENT:', event, args);
+    });
+});
