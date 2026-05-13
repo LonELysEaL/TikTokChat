@@ -80,10 +80,24 @@ io.on('connection', (socket) => {
                     return;
                 }
         
-                tiktokConnectionWrapper = new TikTokConnectionWrapper(uniqueId, options, true);
+                //tiktokConnectionWrapper = new TikTokConnectionWrapper(uniqueId, options, true);
+                try {
+                    tiktokConnectionWrapper = new TikTokConnectionWrapper(uniqueId, options, true);
+                
+                    // กัน crash ถ้า connection ยังไม่พร้อม
+                    if (!tiktokConnectionWrapper?.connection) {
+                        socket.emit('tiktokDisconnected', 'Connection init failed');
+                        return;
+                    }
         
-                // 🔥 สำคัญ: catch promise
-                await Promise.resolve(tiktokConnectionWrapper.connect());
+                    // 🔥 สำคัญ: catch promise
+                    await Promise.resolve(tiktokConnectionWrapper.connect());
+                    
+                } catch (err) {
+                    console.error('CONNECT ERROR:', err);
+                    socket.emit('tiktokDisconnected', err.toString());
+                    return;
+                }
         
             } catch (err) {
                 console.error("TikTok connection error:", err);
