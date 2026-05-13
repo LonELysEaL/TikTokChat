@@ -58,14 +58,36 @@ io.on('connection', (socket) => {
         }
 
         // Connect to the given username (uniqueId)
-        try {
-            tiktokConnectionWrapper = new TikTokConnectionWrapper(uniqueId, options, true);
-            tiktokConnectionWrapper.connect();
-        } catch (err) {
-            socket.emit('tiktokDisconnected', err.toString());
-            return;
-        }
-
+        socket.on('setUniqueId', async (uniqueId, options) => {
+            try {
+        
+                if (typeof options === 'object' && options) {
+                    delete options.requestOptions;
+                    delete options.websocketOptions;
+                } else {
+                    options = {};
+                }
+        
+                if (process.env.SESSIONID) {
+                    options.sessionId = process.env.SESSIONID;
+                }
+        
+                if (process.env.ENABLE_RATE_LIMIT && clientBlocked(io, socket)) {
+                    socket.emit('tiktokDisconnected', 'Rate limit exceeded');
+                    return;
+                }
+        
+                tiktokConnectionWrapper = new TikTokConnectionWrapper(uniqueId, options, true);
+        
+                // 🔥 สำคัญ: catch promise
+                await Promise.resolve(tiktokConnectionWrapper.connect());
+        
+            } catch (err) {
+                console.error("TikTok connection error:", err);
+                socket.emit('tiktokDisconnected', err.toString());
+            }
+        });
+        
         // Redirect wrapper control events once
         tiktokConnectionWrapper.once('connected', state => socket.emit('tiktokConnected', state));
         tiktokConnectionWrapper.once('disconnected', reason => socket.emit('tiktokDisconnected', reason));
@@ -107,8 +129,7 @@ app.use(express.static('public'));
 // Start http listener
 const port = process.env.PORT || 8081;
 httpServer.listen(port, '0.0.0.0', () => {
-    console.log(`Server running! Please visit http://localhost:${port}`);
-    console.log("PORT =", process.env.PORT);
+    console.log("Server running on port", port);
 });
 //console.info(`Server running! Please visit http://localhost:${port}`);
 //console.log('Server running on port', port);
