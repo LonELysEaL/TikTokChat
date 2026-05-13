@@ -61,6 +61,8 @@ class TikTokConnectionWrapper extends EventEmitter {
             }
 
         }).catch((err) => {
+            console.error('CONNECT ERROR FULL =', err);
+
             this.log(`${isReconnect ? 'Reconnect' : 'Connection'} failed, ${err}`);
 
             if (isReconnect) {
