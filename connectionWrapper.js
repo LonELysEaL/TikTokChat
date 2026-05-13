@@ -20,8 +20,14 @@ class TikTokConnectionWrapper extends EventEmitter {
         this.reconnectWaitMs = 1000;
         this.maxReconnectAttempts = 5;
 
-        this.connection = new WebcastPushConnection(uniqueId, options);
-
+        //this.connection = new WebcastPushConnection(uniqueId, options);
+        try {
+            this.connection = new WebcastPushConnection(uniqueId, options);
+        } catch (err) {
+            console.error('FAILED TO CREATE CONNECTION:', err);
+            this.connection = null;
+        }
+/*
         this.connection.on('streamEnd', () => {
             this.log(`streamEnd event received, giving up connection`);
             this.reconnectEnabled = false;
@@ -37,6 +43,24 @@ class TikTokConnectionWrapper extends EventEmitter {
             this.log(`Error event triggered: ${err.info}, ${err.exception}`);
             console.error(err);
         })
+*/
+        if (this.connection) {
+            this.connection.on('streamEnd', () => {
+                this.log(`streamEnd event received`);
+                this.reconnectEnabled = false;
+            });
+        
+            this.connection.on('disconnected', () => {
+                globalConnectionCount -= 1;
+                this.log(`TikTok connection disconnected`);
+                this.scheduleReconnect();
+            });
+        
+            this.connection.on('error', (err) => {
+                this.log(`Error: ${err?.info || err}`);
+                console.error(err);
+            });
+        }
     }
 
     connect(isReconnect) {
