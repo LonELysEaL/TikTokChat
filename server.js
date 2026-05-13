@@ -4,6 +4,7 @@ console.error = (...args) => {
     originalError('🔥 FULL ERROR LOG =>', ...args);
 };
 
+/*
 process.on('uncaughtException', (err) => {
     console.error('🔥 UNCAUGHT:', err);
 });
@@ -11,6 +12,7 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (err) => {
     console.error('🔥 UNHANDLED:', err);
 });
+*/
 
 function safeEmit(socket, event, data) {
     try {
@@ -164,15 +166,17 @@ app.get('/', (req, res) => {
 });
 
 process.on('uncaughtException', (err) => {
-    console.log('🔥 UNCUGHT EXCEPTION FULL:');
-    console.log(err);
-    console.log(err?.stack);
+    console.log('🔥 UNCATCHED EXCEPTION RAW');
+    console.log('MESSAGE:', err?.message);
+    console.log('STACK:', err?.stack);
+    console.log('FULL:', err);
 });
 
 process.on('unhandledRejection', (err) => {
-    console.log('🔥 UNHANDLED REJECTION FULL:');
-    console.log(err);
-    console.log(err?.stack);
+    console.log('🔥 UNHANDLED REJECTION RAW');
+    console.log('MESSAGE:', err?.message);
+    console.log('STACK:', err?.stack);
+    console.log('FULL:', err);
 });
 
 process.on('uncaughtExceptionMonitor', (err) => {
