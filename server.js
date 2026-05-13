@@ -165,6 +165,10 @@ process.on('unhandledRejection', (err) => {
     console.error('🔥 UNHANDLED REJECTION:', err);
 });
 
+process.on('uncaughtExceptionMonitor', (err) => {
+    console.log('🔥 MONITOR:', err);
+});
+
 // Start http listener
 const port = process.env.PORT || 8081;
 
