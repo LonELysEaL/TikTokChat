@@ -1,5 +1,54 @@
 // This will use the demo backend if you open index.html locally via file://, otherwise your server will be used
 //let backendUrl = location.protocol === 'file:' ? "https://tiktok-chat-reader.zerody.one/" : undefined;
+
+let ConnectionState = {
+    IDLE: "IDLE",
+    CONNECTING: "CONNECTING",
+    CONNECTED: "CONNECTED",
+    RECONNECTING: "RECONNECTING",
+    FAILED: "FAILED"
+};
+
+let currentState = ConnectionState.IDLE;
+
+let connectTimer = null;
+let reconnectTimer = null;
+
+function setState(state, message = "") {
+    currentState = state;
+
+    console.log("STATE =>", state, message);
+
+    switch (state) {
+
+        case ConnectionState.CONNECTING:
+            $('#stateText').text("Connecting...");
+            document.getElementById('connectButton').disabled = true;
+            break;
+
+        case ConnectionState.CONNECTED:
+            $('#stateText').text(message || "Connected");
+            document.getElementById('connectButton').disabled = false;
+            break;
+
+        case ConnectionState.RECONNECTING:
+            $('#stateText').text("Reconnecting...");
+            document.getElementById('connectButton').disabled = true;
+            break;
+
+        case ConnectionState.FAILED:
+            $('#stateText').text(message || "Connection Failed");
+            document.getElementById('connectButton').disabled = false;
+            break;
+
+        case ConnectionState.IDLE:
+        default:
+            $('#stateText').text("");
+            document.getElementById('connectButton').disabled = false;
+            break;
+    }
+}
+
 let backendUrl = location.protocol === 'file:' ? "https://tiktokchat-production.up.railway.app" : undefined;
 let connection = new TikTokIOConnection(backendUrl);
 
@@ -36,63 +85,96 @@ $(document).ready(() => {
 })
 
 function connect() {
-    document.getElementById('connectButton').disabled = true;
-    let uniqueId = window.settings.username || $('#uniqueIdInput').val();
-    if ((uniqueId !== '') && (document.title.slice(9) != uniqueId)) {
 
-        $('#stateText').text('Connecting...');
+    let uniqueId = window.settings.username || $('#uniqueIdInput').val();
+
+    if (!uniqueId) {
+        alert("No username entered");
+        return;
+    }
+
+    if (currentState === ConnectionState.CONNECTED &&
+        document.title.slice(9) === uniqueId) {
+        alert("Already connected");
+        return;
+    }
+
+    setState(ConnectionState.CONNECTING);
+
+    // clear old timers
+    if (connectTimer) clearTimeout(connectTimer);
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+
+    connection.connect(uniqueId, {
+        enableExtendedGiftInfo: true
+    }).then(state => {
+
+        setState(ConnectionState.CONNECTED, `Room ${state.roomId}`);
+
+        isConnected = true;
+
+        viewerCount = 0;
+        likeCount = 0;
+        diamondsCount = 0;
+        updateRoomStats();
+
+        document.title = "TikTok - " + uniqueId;
+
+        // cancel timeout
+        if (connectTimer) clearTimeout(connectTimer);
+
+    }).catch(err => {
+
+        console.error("CONNECT ERROR:", err);
+
+        setState(ConnectionState.FAILED, err?.toString?.() || "Failed");
+
+        scheduleReconnect(uniqueId);
+
+    });
+
+    // ⛔ timeout guard (controlled by state machine)
+    connectTimer = setTimeout(() => {
+
+        if (currentState !== ConnectionState.CONNECTED) {
+            setState(ConnectionState.FAILED, "Connection Timeout");
+
+            scheduleReconnect(uniqueId);
+        }
+
+    }, 15000);
+}
+
+function scheduleReconnect(uniqueId) {
+
+    if (currentState === ConnectionState.CONNECTED) return;
+
+    setState(ConnectionState.RECONNECTING);
+
+    let delay = 3000;
+
+    reconnectTimer = setTimeout(() => {
+
+        console.log("🔁 Reconnecting...");
 
         connection.connect(uniqueId, {
             enableExtendedGiftInfo: true
         }).then(state => {
-			isConnected = true;
-            $('#stateText').text(`Connected to roomId ${state.roomId}`);
 
-            // reset stats
-            viewerCount = 0;
-            likeCount = 0;
-            diamondsCount = 0;
-            updateRoomStats();
-			
-			//set page title to avoid double connect
-			document.title = "TikTok - " + uniqueId;
-			
-			if (connectTimer) {
-                clearTimeout(connectTimer);
-                connectTimer = null;
-            }
+            setState(ConnectionState.CONNECTED, `Room ${state.roomId}`);
+            isConnected = true;
 
-            document.getElementById('connectButton').disabled = false;
+        }).catch(err => {
 
-        }).catch(errorMessage => {
-			if (isConnected) return;
-            $('#stateText').text(errorMessage);
+            console.error("RECONNECT FAIL:", err);
 
-            // schedule next try if obs username set
-            if (window.settings.username) {
-                setTimeout(() => {
-                    connect(window.settings.username);
-                }, 30000);
-            }
-			document.getElementById('connectButton').disabled = false;
-			clearTimeout(timer);
-        })
+            setState(ConnectionState.FAILED, "Reconnect failed");
 
-		// ❌ FIX: timer ต้องอยู่ “หลัง connect เริ่ม” แต่ต้อง cancel ได้
-        connectTimer = setTimeout(() => {
-            if (!isConnected) {
-                $('#stateText').text("Connection Timeout");
-                document.getElementById('connectButton').disabled = false;
-            }
-        }, 15000);
-		
-    } else {
-		if (uniqueId == "") {
-			alert('No username entered');
-		} else {
-			alert('Already connected');			
-		}
-    }
+            scheduleReconnect(uniqueId); // retry loop
+
+        });
+
+    }, delay);
 }
 
 // Prevent Cross site scripting (XSS)
@@ -877,18 +959,17 @@ connection.on('social', (data) => {
 })
 
 connection.on('streamEnd', () => {
-    $('#stateText').text('Stream ended.');
 
-    // schedule next try if obs username set
+    setState(ConnectionState.RECONNECTING);
+
     if (window.settings.username) {
-        setTimeout(() => {
-            connect(window.settings.username);
-        }, 30000);
+        scheduleReconnect(window.settings.username);
     }
-})
+});
 
 connection.on('connected', () => {
     isConnected = true;
+    setState(ConnectionState.CONNECTED);
 });
 
 // log raw data
@@ -934,6 +1015,16 @@ connection.on('questionNew', (data) => {
 
     addRawItem('', data, 'questionNew');
 })
+
+connection.on('disconnected', () => {
+    isConnected = false;
+
+    setState(ConnectionState.RECONNECTING);
+
+    if (window.settings.username) {
+        scheduleReconnect(window.settings.username);
+    }
+});
 
 // {###BEGIN###} Floating Gift
 
