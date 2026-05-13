@@ -3,6 +3,8 @@
 let backendUrl = location.protocol === 'file:' ? "https://tiktokchat-production.up.railway.app" : undefined;
 let connection = new TikTokIOConnection(backendUrl);
 
+let isConnected = false;
+
 // Counter
 let viewerCount = 0;
 let likeCount = 0;
@@ -43,6 +45,7 @@ function connect() {
         connection.connect(uniqueId, {
             enableExtendedGiftInfo: true
         }).then(state => {
+			isConnected = true;
             $('#stateText').text(`Connected to roomId ${state.roomId}`);
 
             // reset stats
@@ -56,6 +59,7 @@ function connect() {
 			
 
         }).catch(errorMessage => {
+			if (isConnected) return;
             $('#stateText').text(errorMessage);
 
             // schedule next try if obs username set
@@ -874,7 +878,9 @@ connection.on('streamEnd', () => {
     }
 })
 
-
+connection.on('connected', () => {
+    isConnected = true;
+});
 
 // log raw data
 connection.on('subscribe', (data) => {
