@@ -37,6 +37,9 @@ io.on('connection', (socket) => {
 
     socket.on('setUniqueId', (uniqueId, options) => {
 
+        // log the requested Creator's ID
+        console.log('🔥 CLIENT SEND CONNECT:', uniqueId);
+
         // Prohibit the client from specifying these options (for security reasons)
         if (typeof options === 'object' && options) {
             delete options.requestOptions;
