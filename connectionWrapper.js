@@ -59,8 +59,8 @@ class TikTokConnectionWrapper extends EventEmitter {
 /*            this.connection.on('error', (err) => {
                 this.log(`Error: ${err?.info || err}`);
                 console.error(err);
-*/            });
-
+            });
+*/
             this.connection.on('error', (err) => {
                 console.log('🔥 TIKTOK ERROR RAW:');
                 console.log(JSON.stringify(err, null, 2));
