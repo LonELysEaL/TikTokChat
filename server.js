@@ -126,14 +126,12 @@ setInterval(() => {
 // Serve frontend files
 app.use(express.static('public'));
 
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/public/index.html');
+});
+
 // Start http listener
 const port = process.env.PORT || 8081;
-
-const path = require('path');
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
 
 httpServer.listen(port, '0.0.0.0', () => {
     console.log("Server running on port", port);
