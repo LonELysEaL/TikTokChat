@@ -1,3 +1,11 @@
+process.on('uncaughtException', (err) => {
+    console.error('🔥 UNCAUGHT:', err);
+});
+
+process.on('unhandledRejection', (err) => {
+    console.error('🔥 UNHANDLED:', err);
+});
+
 require('dotenv').config();
 
 const express = require('express');
