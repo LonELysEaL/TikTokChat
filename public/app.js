@@ -162,7 +162,7 @@ function scheduleReconnect(uniqueId) {
             enableExtendedGiftInfo: true
         }).then(state => {
 
-            setState(ConnectionState.CONNECTED, `Room ${state.roomId}`);
+            setState(ConnectionState.CONNECTED, `Connected to Room ${state.roomId}`);
             isConnected = true;
 
         }).catch(err => {
