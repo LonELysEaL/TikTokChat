@@ -28,9 +28,13 @@ function setState(state, message = "") {
             break;
 
         case ConnectionState.CONNECTED:
-            $('#stateText').text(message || "Connected");
-            document.getElementById('connectButton').disabled = false;
-            break;
+		    if (connectTimer) {
+		        clearTimeout(connectTimer);
+		        connectTimer = null;
+		    }		
+		    $('#stateText').text(message || "Connected");
+		    document.getElementById('connectButton').disabled = false;
+		    break;
 
         case ConnectionState.RECONNECTING:
             $('#stateText').text("Reconnecting...");
@@ -112,7 +116,10 @@ async function connect() {
 
     setState(ConnectionState.CONNECTING);
 
-    if (connectTimer) clearTimeout(connectTimer);
+    if (connectTimer) {
+	    clearTimeout(connectTimer);
+	    connectTimer = null;
+	}
     if (reconnectTimer) clearTimeout(reconnectTimer);
 
     try {
@@ -156,18 +163,16 @@ async function connect() {
 
     connectTimer = setTimeout(() => {
 
-        if (currentState !== ConnectionState.CONNECTED) {
-
-            console.log("CONNECT TIMEOUT");
-
-            isConnecting = false;
-
-            setState(ConnectionState.FAILED, "Connection Timeout");
-
-            scheduleReconnect(uniqueId);
-        }
-
-    }, 15000);
+	    if (connectTimer == null) return;
+	
+	    if (currentState !== ConnectionState.CONNECTED) {
+	        console.log("TIMEOUT FIRED");
+	
+	        setState(ConnectionState.FAILED, "Connection Timeout");
+	        scheduleReconnect(uniqueId);
+	    }
+	
+	}, 15000);
 }
 
 function scheduleReconnect(uniqueId) {
