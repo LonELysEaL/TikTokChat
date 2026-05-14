@@ -54,6 +54,8 @@ let backendUrl = location.protocol === 'file:' ? "https://tiktokchat-production.
 let connection = new TikTokIOConnection(backendUrl);
 
 let isConnected = false;
+let isConnecting = false;
+let reconnecting = false;
 
 // Counter
 let viewerCount = 0;
@@ -85,7 +87,7 @@ $(document).ready(() => {
     if (window.settings.username) connect();
 })
 
-function connect() {
+async function connect() {
 
     let uniqueId = window.settings.username || $('#uniqueIdInput').val();
 
@@ -94,50 +96,72 @@ function connect() {
         return;
     }
 
-    if (currentState === ConnectionState.CONNECTED &&
-        document.title.slice(9) === uniqueId) {
-        alert("Already connected");
+    // กัน connect ซ้ำ
+    if (isConnecting) {
+        console.log("ALREADY CONNECTING");
         return;
     }
 
+    // กัน connected ซ้ำ
+    if (currentState === ConnectionState.CONNECTED) {
+        console.log("ALREADY CONNECTED");
+        return;
+    }
+
+    isConnecting = true;
+
     setState(ConnectionState.CONNECTING);
 
-    // clear old timers
     if (connectTimer) clearTimeout(connectTimer);
     if (reconnectTimer) clearTimeout(reconnectTimer);
 
-    connection.connect(uniqueId, {
-        enableExtendedGiftInfo: true
-    }).then(state => {
+    try {
+
+        // สำคัญมาก
+        // ปิด connection เก่าก่อน
+        try {
+            connection.disconnect();
+        } catch(e) {}
+
+        let state = await connection.connect(uniqueId, {
+            enableExtendedGiftInfo: true
+        });
+
+        console.log("CONNECTED SUCCESS");
+
+        reconnecting = false;
+        isConnected = true;
+        isConnecting = false;
 
         setState(ConnectionState.CONNECTED, `Connected to Room ${state.roomId}`);
-
-        isConnected = true;
 
         viewerCount = 0;
         likeCount = 0;
         diamondsCount = 0;
+
         updateRoomStats();
 
         document.title = "TikTok - " + uniqueId;
 
-        // cancel timeout
-        if (connectTimer) clearTimeout(connectTimer);
-
-    }).catch(err => {
+    } catch(err) {
 
         console.error("CONNECT ERROR:", err);
+
+        isConnecting = false;
 
         setState(ConnectionState.FAILED, err?.toString?.() || "Failed");
 
         scheduleReconnect(uniqueId);
+    }
 
-    });
-
-    // ⛔ timeout guard (controlled by state machine)
     connectTimer = setTimeout(() => {
 
         if (currentState !== ConnectionState.CONNECTED) {
+
+            console.log("CONNECT TIMEOUT");
+
+            isConnecting = false;
+
             setState(ConnectionState.FAILED, "Connection Timeout");
 
             scheduleReconnect(uniqueId);
@@ -148,34 +172,25 @@ function connect() {
 
 function scheduleReconnect(uniqueId) {
 
-    if (currentState === ConnectionState.CONNECTED) return;
+    // กัน reconnect ซ้อน
+    if (reconnecting) {
+        console.log("RECONNECT ALREADY RUNNING");
+        return;
+    }
+
+    reconnecting = true;
 
     setState(ConnectionState.RECONNECTING);
 
-    let delay = 3000;
-
     reconnectTimer = setTimeout(() => {
 
-        console.log("🔁 Reconnecting...");
+        console.log("TRY RECONNECT");
 
-        connection.connect(uniqueId, {
-            enableExtendedGiftInfo: true
-        }).then(state => {
+        isConnecting = false;
 
-            setState(ConnectionState.CONNECTED, `Connected to Room ${state.roomId}`);
-            isConnected = true;
+        connect();
 
-        }).catch(err => {
-
-            console.error("RECONNECT FAIL:", err);
-
-            setState(ConnectionState.FAILED, "Reconnect failed");
-
-            scheduleReconnect(uniqueId); // retry loop
-
-        });
-
-    }, delay);
+    }, 3000);
 }
 
 // Prevent Cross site scripting (XSS)
@@ -982,8 +997,16 @@ connection.on('streamEnd', () => {
 });
 
 connection.on('connected', () => {
+
+    console.log("SOCKET CONNECTED");
+
+    reconnecting = false;
+    isConnecting = false;
+
     touchConnection();
+
     isConnected = true;
+
     setState(ConnectionState.CONNECTED);
 });
 
@@ -1040,12 +1063,12 @@ connection.on('questionNew', (data) => {
 
 connection.on('disconnected', () => {
 
+    console.log("SOCKET DISCONNECTED");
+
+    isConnecting = false;
+
     let diff = Date.now() - lastEventTime;
 
-    console.log("LAST EVENT DIFF =", diff);
-
-    // ถ้ายังมี event ภายใน 15 วิ
-    // ถือว่ายังไม่ตายจริง
     if (diff < 15000) {
         console.log("IGNORE FAKE DISCONNECT");
         return;
@@ -1053,11 +1076,7 @@ connection.on('disconnected', () => {
 
     isConnected = false;
 
-    setState(ConnectionState.RECONNECTING);
-
-    if (window.settings.username) {
-        scheduleReconnect(window.settings.username);
-    }
+    scheduleReconnect(window.settings.username);
 });
 
 // {###BEGIN###} Floating Gift
