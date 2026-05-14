@@ -10,6 +10,7 @@ let ConnectionState = {
 };
 
 let currentState = ConnectionState.IDLE;
+let lastEventTime = Date.now();
 
 let connectTimer = null;
 let reconnectTimer = null;
@@ -887,6 +888,7 @@ function addCorrectAnswer(data) {
 
 // viewer stats
 connection.on('roomUser', (msg) => {
+    touchConnection();
     if (typeof msg.viewerCount === 'number') {
         viewerCount = msg.viewerCount;
         updateRoomStats();
@@ -895,6 +897,7 @@ connection.on('roomUser', (msg) => {
 
 // like stats
 connection.on('like', (msg) => {
+    touchConnection();
     if (typeof msg.totalLikeCount === 'number') {
         likeCount = msg.totalLikeCount;
         updateRoomStats();
@@ -910,6 +913,7 @@ connection.on('like', (msg) => {
 // Member join
 let joinMsgDelay = 0;
 connection.on('member', (msg) => {
+    touchConnection();
     if (window.settings.showJoins === "0") return;
 
     let addDelay = 250;
@@ -927,6 +931,7 @@ connection.on('member', (msg) => {
 
 // New chat comment received
 connection.on('chat', (msg) => {
+    touchConnection();
     if (window.settings.showChats === "0") return;
 
     addChatItem('', msg, msg.comment);
@@ -940,6 +945,7 @@ connection.on('chat', (msg) => {
 
 // New gift received
 connection.on('gift', (data) => {
+    touchConnection();
     if (!isPendingStreak(data) && data.diamondCount > 0) {
         diamondsCount += (data.diamondCount * data.repeatCount);
         updateRoomStats();
@@ -952,6 +958,7 @@ connection.on('gift', (data) => {
 
 // share, follow
 connection.on('social', (data) => {
+    touchConnection();
     if (window.settings.showFollows === "0") return;
 
     let color = data.displayType.includes('follow') ? '#ff005e' : '#2fb816';
@@ -959,6 +966,13 @@ connection.on('social', (data) => {
 })
 
 connection.on('streamEnd', () => {
+
+    let diff = Date.now() - lastEventTime;
+
+    if (diff < 15000) {
+        console.log("IGNORE streamEnd");
+        return;
+    }
 
     setState(ConnectionState.RECONNECTING);
 
@@ -968,18 +982,21 @@ connection.on('streamEnd', () => {
 });
 
 connection.on('connected', () => {
+    touchConnection();
     isConnected = true;
     setState(ConnectionState.CONNECTED);
 });
 
 // log raw data
 connection.on('subscribe', (data) => {
+    touchConnection();
     if (window.settings.showChats === "0") return;
 
     addRawItem('', data, 'subscribe');
 })
 
 connection.on('envelope', (data) => {
+    touchConnection();
     if (window.settings.showChats === "0") return;
 
 	addTreasure(data);
@@ -987,36 +1004,53 @@ connection.on('envelope', (data) => {
 })
 
 connection.on('emote', (data) => {
+    touchConnection();
     if (window.settings.showChats === "0") return;
 
     addRawItem('', data, 'emote');
 })
 
 connection.on('liveIntro', (data) => {
+    touchConnection();
     if (window.settings.showChats === "0") return;
 
     addRawItem('', data, 'liveIntro');
 })
 
 connection.on('linkMicArmies', (data) => {
+    touchConnection();
     if (window.settings.showChats === "0") return;
 
     addRawItem('', data, 'linkMicArmies');
 })
 
 connection.on('linkMicBattle', (data) => {
+    touchConnection();
     if (window.settings.showChats === "0") return;
 
     addRawItem('', data, 'linkMicArmies');
 })
 
 connection.on('questionNew', (data) => {
+    touchConnection();
     if (window.settings.showChats === "0") return;
 
     addRawItem('', data, 'questionNew');
 })
 
 connection.on('disconnected', () => {
+
+    let diff = Date.now() - lastEventTime;
+
+    console.log("LAST EVENT DIFF =", diff);
+
+    // ถ้ายังมี event ภายใน 15 วิ
+    // ถือว่ายังไม่ตายจริง
+    if (diff < 15000) {
+        console.log("IGNORE FAKE DISCONNECT");
+        return;
+    }
+
     isConnected = false;
 
     setState(ConnectionState.RECONNECTING);
@@ -1138,4 +1172,14 @@ function giftOption() {
 	} else {
 	    giftComment = false;
 	}
+}
+
+function touchConnection() {
+    lastEventTime = Date.now();
+
+    // ถ้ากำลัง reconnect แต่ยังมี event เข้า
+    // แปลว่า connection ยังใช้ได้จริง
+    if (currentState === ConnectionState.RECONNECTING) {
+        setState(ConnectionState.CONNECTED);
+    }
 }
