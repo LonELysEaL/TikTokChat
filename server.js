@@ -32,9 +32,9 @@ const { Server } = require('socket.io');
 const { TikTokConnectionWrapper, getGlobalConnectionCount } = require('./connectionWrapper');
 const { clientBlocked } = require('./limiter');
 
-app.use(express.static('public'));
 const app = express();
 const path = require('path');
+app.use(express.static('public'));
 app.get('/', (req, res) => {
 /*    res.status(200).send('OK - TikTok Chat Server Running');
     res.sendFile(__dirname + '/public/index.html');
@@ -130,6 +130,10 @@ io.on('connection', (socket) => {
             tiktokConnectionWrapper.disconnect();
         }
     });
+
+    socket.onAny((event, ...args) => {
+        console.log('📡 SOCKET EVENT:', event, args);
+    });
 });
 
 // Emit global connection statistics
@@ -166,12 +170,13 @@ httpServer.listen(port, '0.0.0.0', () => {
 //console.info(`Server running! Please visit http://localhost:${port}`);
 //console.log('Server running on port', port);
 
+/* คำสั่งซ้อน
 io.on('connection', (socket) => {
     socket.onAny((event, ...args) => {
         console.log('📡 SOCKET EVENT:', event, args);
     });
 });
-
+*/
 // Serve frontend files
 /*
 app.use(express.static('public'));
