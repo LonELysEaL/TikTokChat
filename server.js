@@ -32,11 +32,13 @@ const { Server } = require('socket.io');
 const { TikTokConnectionWrapper, getGlobalConnectionCount } = require('./connectionWrapper');
 const { clientBlocked } = require('./limiter');
 
+app.use(express.static('public'));
 const app = express();
-
+const path = require('path');
 app.get('/', (req, res) => {
-    res.status(200).send('OK - TikTok Chat Server Running');
+/*    res.status(200).send('OK - TikTok Chat Server Running');
     res.sendFile(__dirname + '/public/index.html');
+*/    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const httpServer = createServer(app);
@@ -135,13 +137,6 @@ setInterval(() => {
     io.emit('statistic', { globalConnectionCount: getGlobalConnectionCount() });
 }, 5000)
 
-// Serve frontend files
-app.use(express.static('public'));
-
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/public/index.html');
-});
-
 process.on('uncaughtException', (err) => {
     console.log('🔥 UNCATCHED EXCEPTION RAW');
     console.log('MESSAGE:', err?.message);
@@ -176,3 +171,12 @@ io.on('connection', (socket) => {
         console.log('📡 SOCKET EVENT:', event, args);
     });
 });
+
+// Serve frontend files
+/*
+app.use(express.static('public'));
+
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/public/index.html');
+});
+*/
