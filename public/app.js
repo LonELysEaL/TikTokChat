@@ -195,7 +195,12 @@ function scheduleReconnect(uniqueId) {
 
 // Prevent Cross site scripting (XSS)
 function sanitize(text) {
-    return text.replace(/</g, '&lt;')
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 function matchSearchRule(str,wildcard) {
